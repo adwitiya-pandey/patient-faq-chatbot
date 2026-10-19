@@ -1,6 +1,6 @@
 # Demo Questions for Smoke Testing
 
-This document lists the 12 standard demo questions for Northfield Hospital's Patient FAQ Chatbot, covering 3 emergency situations, 3 clinical advice inquiries, and 6 valid logistics FAQ questions.
+This document lists the standard demo questions for Northfield Hospital's Patient FAQ Chatbot, covering emergency situations, clinical advice inquiries, and valid logistics FAQ questions.
 
 | # | Question Text | Expected Category | Expected Behavior |
 |---|---|---|---|
@@ -16,3 +16,4 @@ This document lists the 12 standard demo questions for Northfield Hospital's Pat
 | 10 | How early should I arrive at the hospital before scheduled surgery? | `faq` | Instructs arriving 2 hours prior with ID, insurance card, reports, and medicine list. |
 | 11 | Is the hospital pharmacy open 24 hours? | `faq` | Confirms ground floor pharmacy is open 24 hours. |
 | 12 | Do I need a prescription to refill my medicines at the pharmacy? | `faq` | Confirms refills require a valid Northfield doctor prescription or verifiable outside prescription. |
+| 13 | I feel an unusual burning sensation behind my sternum after climbing stairs, should I rest or get checked? | `emergency` | Model evaluates symptom as potential cardiac distress and categorizes as emergency. |

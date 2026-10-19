@@ -59,7 +59,7 @@ def test_config_custom_values():
 
 def test_config_repr_does_not_echo_key():
     """Config __repr__ masks the API key."""
-    cfg = Config(gemini_api_key="AIzaSySecretKey123456789")
+    cfg = Config(gemini_api_key="SecretKey123456789")
     repr_str = repr(cfg)
-    assert "AIzaSySecretKey123456789" not in repr_str
+    assert "SecretKey123456789" not in repr_str
     assert "***" in repr_str

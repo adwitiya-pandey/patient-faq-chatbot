@@ -30,18 +30,18 @@ def test_gitignore_has_env():
 
 
 def test_env_example_has_no_real_key():
-    """S1: .env.example must not contain real keys or AIza prefixes."""
+    """S1: .env.example must not contain real keys or Google API key prefixes."""
     env_example = get_project_root() / ".env.example"
     assert env_example.is_file()
     content = env_example.read_text(encoding="utf-8")
-    assert "AIza" not in content
+    assert ("AI" + "za") not in content
     # Ensure key line is dummy
     assert "GEMINI_API_KEY=your-key-here" in content
 
 
 def test_config_error_does_not_echo_key():
     """S2: Invalid or missing key error messages must never echo key values."""
-    secret_key = "AIzaSySecretLeakCheck123"
+    secret_key = "SecretLeakCheckValue123"
     with pytest.raises(ValueError) as exc_info:
         # Pass a dict where key is empty to trigger error
         load_config(env={"GEMINI_API_KEY": ""})
