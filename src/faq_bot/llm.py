@@ -51,8 +51,9 @@ def generate_json(
         system_instruction=system_prompt,
         response_mime_type="application/json",
         response_json_schema=BotReply.model_json_schema(),
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
         temperature=0.2,
-        max_output_tokens=400,
+        max_output_tokens=800,
     )
 
     max_retries = cfg.llm_max_retries
