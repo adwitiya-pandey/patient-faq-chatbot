@@ -6,8 +6,11 @@ Pre-filled on 18 Oct 2026 by running google-genai 2.31.0, anthropic 1.15.0, stre
 ```python
 from google import genai
 from google.genai import types, errors
-client = genai.Client(api_key=...)              # constructs offline
-client.models.generate_content(model=..., contents=[...], config=types.GenerateContentConfig(...))
+
+client = genai.Client(api_key=...)  # constructs offline
+client.models.generate_content(
+    model=..., contents=[...], config=types.GenerateContentConfig(...)
+)
 ```
 | Topic | Result |
 |---|---|
@@ -61,14 +64,30 @@ contents = [
 ]
 print("contents ok:", [c.role for c in contents])
 usage = types.GenerateContentResponseUsageMetadata(
-    prompt_token_count=10, candidates_token_count=5, total_token_count=20, thoughts_token_count=5
+    prompt_token_count=10,
+    candidates_token_count=5,
+    total_token_count=20,
+    thoughts_token_count=5,
 )
 reply = types.GenerateContentResponse(
     usage_metadata=usage,
-    candidates=[types.Candidate(content=types.Content(role="model", parts=[types.Part(text='{"category":"faq","answer":"x"}')]))],
+    candidates=[
+        types.Candidate(
+            content=types.Content(
+                role="model", parts=[types.Part(text='{"category":"faq","answer":"x"}')]
+            )
+        )
+    ],
 )
-print("text:", reply.text, "| output tokens:", usage.total_token_count - usage.prompt_token_count)
-err = errors.APIError(429, {"error": {"message": "quota", "status": "RESOURCE_EXHAUSTED"}})
+print(
+    "text:",
+    reply.text,
+    "| output tokens:",
+    usage.total_token_count - usage.prompt_token_count,
+)
+err = errors.APIError(
+    429, {"error": {"message": "quota", "status": "RESOURCE_EXHAUSTED"}}
+)
 print("APIError:", err.code, err.status, err.message)
 print("client:", type(genai.Client(api_key="dummy")).__name__)
 ```
