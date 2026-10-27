@@ -32,6 +32,10 @@ def test_config_defaults():
     assert cfg.max_input_chars == 500
     assert cfg.llm_max_retries == 3
     assert cfg.hospital_name == "Northfield Multispecialty Hospital"
+    assert cfg.max_turns_per_session == 30
+    assert cfg.min_seconds_between_turns == 2.0
+    assert cfg.daily_llm_call_cap == 200
+    assert cfg.llm_kill_switch is False
 
 
 def test_config_custom_values():
@@ -45,6 +49,10 @@ def test_config_custom_values():
         "MAX_INPUT_CHARS": "300",
         "LLM_MAX_RETRIES": "2",
         "HOSPITAL_NAME": "Bengaluru General Hospital",
+        "MAX_TURNS_PER_SESSION": "15",
+        "MIN_SECONDS_BETWEEN_TURNS": "3.5",
+        "DAILY_LLM_CALL_CAP": "100",
+        "LLM_KILL_SWITCH": "true",
     }
     cfg = load_config(env=custom_env)
     assert cfg.gemini_api_key == "custom-key"
@@ -55,6 +63,10 @@ def test_config_custom_values():
     assert cfg.max_input_chars == 300
     assert cfg.llm_max_retries == 2
     assert cfg.hospital_name == "Bengaluru General Hospital"
+    assert cfg.max_turns_per_session == 15
+    assert cfg.min_seconds_between_turns == 3.5
+    assert cfg.daily_llm_call_cap == 100
+    assert cfg.llm_kill_switch is True
 
 
 def test_config_repr_does_not_echo_key():

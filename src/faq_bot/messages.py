@@ -32,3 +32,13 @@ FALLBACK_TEXT = (
 LLM_ERROR_TEXT = "The assistant is unavailable right now. Please call 080-0000-0100 (8:00 to 20:00, Mon to Sat)."
 
 UNGROUNDED_CONTACT_FALLBACK_TEXT = "Please call the front desk at 080-0000-0100."
+
+RATE_LIMIT_TEXT = (
+    "You are sending messages too quickly or have reached the session turn limit. "
+    "Please wait a moment or start a new session."
+)
+
+DAILY_CAP_TEXT = (
+    "The service has reached its daily limit. Please try again tomorrow, "
+    "or call Northfield Hospital at 080-0000-0100."
+)

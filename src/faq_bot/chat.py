@@ -14,16 +14,19 @@ from faq_bot.cost import estimate_cost
 from faq_bot.llm import generate_json
 from faq_bot.messages import (
     CLINICAL_REFUSAL_TEXT,
+    DAILY_CAP_TEXT,
     EMERGENCY_TEXT,
     EMPTY_TEXT,
     FALLBACK_TEXT,
     LLM_ERROR_TEXT,
     OFF_TOPIC_TEXT,
+    RATE_LIMIT_TEXT,
     TOO_LONG_TEXT,
     UNGROUNDED_CONTACT_FALLBACK_TEXT,
 )
 from faq_bot.models import BotReply, Message, TurnResult, Usage
 from faq_bot.prompts import build_system_prompt
+from faq_bot.rate_limit import RateLimiter, default_rate_limiter
 from faq_bot.safety import (
     check_grounded_contacts,
     injection_check,
@@ -102,6 +105,7 @@ def handle_turn(
     config: Config | None = None,
     session_id: str | None = None,
     request_id: str | None = None,
+    rate_limiter: RateLimiter | None = None,
 ) -> TurnResult:
     """Process a single turn following the 10-step turn pipeline (SPEC 5).
 
@@ -112,6 +116,42 @@ def handle_turn(
     cfg = config or load_config()
     req_id = request_id or str(uuid.uuid4())
     sess_id = session_id or uuid.uuid4().hex[:16]
+    limiter = rate_limiter or default_rate_limiter
+
+    # Rate limiting & turn cap check
+    rate_hit = limiter.check_turn_rate_limit(
+        session_id=sess_id,
+        max_turns=cfg.max_turns_per_session,
+        min_seconds_between=cfg.min_seconds_between_turns,
+    )
+    if rate_hit == "rate_limited":
+        usage = Usage()
+        flags = ["rate_limited"]
+        lat_ms = _log_turn_metadata(
+            start_time,
+            category="rate_limited",
+            blocked=True,
+            pii_redacted=False,
+            usage=usage,
+            model=cfg.gemini_model,
+            llm_called=False,
+            request_id=req_id,
+            session_id=sess_id,
+            guardrail_flags=flags,
+            outcome="refused",
+            price_in=cfg.price_input_per_m,
+            price_out=cfg.price_output_per_m,
+        )
+        return TurnResult(
+            text=RATE_LIMIT_TEXT,
+            category="rate_limited",
+            blocked=True,
+            usage=usage,
+            pii_redacted=False,
+            guardrail_flags=flags,
+            request_id=req_id,
+            latency_ms=lat_ms,
+        )
 
     # Step 1: Validate input
     clean_text, val_err = validate_input(text, max_chars=cfg.max_input_chars)
@@ -296,7 +336,41 @@ def handle_turn(
     # Append current turn user message
     allowed_messages.append(Message(role="user", text=text_for_llm))
 
+    # Daily process-wide LLM call cap check
+    cap_hit = limiter.check_daily_cap(daily_cap=cfg.daily_llm_call_cap)
+    if cap_hit == "daily_cap_reached":
+        usage = Usage()
+        flags = ["daily_cap_reached"]
+        if pii_found:
+            flags.append("pii_redacted")
+        lat_ms = _log_turn_metadata(
+            start_time,
+            category="daily_cap_reached",
+            blocked=True,
+            pii_redacted=pii_found,
+            usage=usage,
+            model=cfg.gemini_model,
+            llm_called=False,
+            request_id=req_id,
+            session_id=sess_id,
+            guardrail_flags=flags,
+            outcome="refused",
+            price_in=cfg.price_input_per_m,
+            price_out=cfg.price_output_per_m,
+        )
+        return TurnResult(
+            text=DAILY_CAP_TEXT,
+            category="daily_cap_reached",
+            blocked=True,
+            usage=usage,
+            pii_redacted=pii_found,
+            guardrail_flags=flags,
+            request_id=req_id,
+            latency_ms=lat_ms,
+        )
+
     # Step 5: Call LLM
+    limiter.record_llm_call()
     system_prompt = build_system_prompt(cfg.hospital_name)
     llm_callable = getattr(llm, "generate_json", llm) or generate_json
 

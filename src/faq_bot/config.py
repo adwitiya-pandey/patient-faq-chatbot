@@ -18,6 +18,10 @@ class Config:
     max_input_chars: int = 500
     llm_max_retries: int = 3
     hospital_name: str = "Northfield Multispecialty Hospital"
+    max_turns_per_session: int = 30
+    min_seconds_between_turns: float = 2.0
+    daily_llm_call_cap: int = 200
+    llm_kill_switch: bool = False
 
     def __repr__(self) -> str:
         """Never echo the raw API key in string representations."""
@@ -25,7 +29,11 @@ class Config:
             f"Config(gemini_api_key='***', gemini_model='{self.gemini_model}', "
             f"price_input_per_m={self.price_input_per_m}, price_output_per_m={self.price_output_per_m}, "
             f"max_history_turns={self.max_history_turns}, max_input_chars={self.max_input_chars}, "
-            f"llm_max_retries={self.llm_max_retries}, hospital_name='{self.hospital_name}')"
+            f"llm_max_retries={self.llm_max_retries}, hospital_name='{self.hospital_name}', "
+            f"max_turns_per_session={self.max_turns_per_session}, "
+            f"min_seconds_between_turns={self.min_seconds_between_turns}, "
+            f"daily_llm_call_cap={self.daily_llm_call_cap}, "
+            f"llm_kill_switch={self.llm_kill_switch})"
         )
 
 
@@ -70,6 +78,24 @@ def load_config(env: dict[str, str] | None = None) -> Config:
     except (ValueError, TypeError):
         raise ValueError("LLM_MAX_RETRIES must be a valid integer") from None
 
+    try:
+        max_turns = int(source.get("MAX_TURNS_PER_SESSION", 30))
+    except (ValueError, TypeError):
+        raise ValueError("MAX_TURNS_PER_SESSION must be a valid integer") from None
+
+    try:
+        min_seconds = float(source.get("MIN_SECONDS_BETWEEN_TURNS", 2.0))
+    except (ValueError, TypeError):
+        raise ValueError("MIN_SECONDS_BETWEEN_TURNS must be a valid float") from None
+
+    try:
+        daily_cap = int(source.get("DAILY_LLM_CALL_CAP", 200))
+    except (ValueError, TypeError):
+        raise ValueError("DAILY_LLM_CALL_CAP must be a valid integer") from None
+
+    kill_switch_raw = source.get("LLM_KILL_SWITCH", "false")
+    kill_switch = str(kill_switch_raw).strip().lower() in ("true", "1", "yes")
+
     model = source.get("GEMINI_MODEL", "gemini-3.8-flash")
     hospital = source.get("HOSPITAL_NAME", "Northfield Multispecialty Hospital")
 
@@ -82,4 +108,8 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         max_input_chars=max_chars,
         llm_max_retries=max_retries,
         hospital_name=hospital.strip(),
+        max_turns_per_session=max_turns,
+        min_seconds_between_turns=min_seconds,
+        daily_llm_call_cap=daily_cap,
+        llm_kill_switch=kill_switch,
     )
