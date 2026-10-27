@@ -65,6 +65,27 @@ PII = {
     "id12": re.compile(r"(?<![0-9])[0-9]{4}\s?[0-9]{4}\s?[0-9]{4}(?![0-9])"),
 }
 
+# Prompt injection patterns: attempts to alter model instructions, reveal system prompts, or hijack personas.
+INJECTION_PATTERNS = [
+    # 1. Ignore/disregard/bypass instructions or rules
+    r"\b(ignore|disregard|forget|override|bypass)\b.*\b(previous|prior|above|all)\b.*\b(instruction|prompt|rule|directive|constraint|system)s?\b",
+    r"\b(ignore|disregard|forget|override)\b.*\b(system\s*prompt|system\s*instruction|instructions\s*above)\b",
+    # 2. Reveal/print system prompt
+    r"\b(reveal|print|show|output|display|repeat|dump|tell\s+me)\b.*\b(system\s*prompt|initial\s*instructions?|system\s*instructions?|prompt\s*above|all\s+rules|internal\s+instructions?)\b",
+    # 3. Act as / DAN / developer mode
+    r"\b(act\s+as\s+(dan|an?\s+unrestricted|an?\s+unfiltered|evil|jailbroken)|developer\s+mode|dan\s+mode|jailbreak)\b",
+    # 4. Role-play override / "you are now"
+    r"\b(you\s+are\s+now|from\s+now\s+on\s+you\s+are|pretend\s+(to\s+be|you\s+are)|roleplay\s+as)\b.*\b(doctor|physician|unrestricted|unfiltered|jailbreak|another|different|gpt|claude|dan|bot|assistant)\b",
+    r"\b(you\s+are\s+now\s+(an?|in\b)|from\s+now\s+on\s+you\s+are\b)",
+    # 5. Base64 or long encoded blobs (at least 32 contiguous base64 characters or decode directive)
+    r"(?i)\bbase64\b.*(?:decode|eval|exec|blob|string)",
+    r"\b[A-Za-z0-9+/]{32,}={0,2}\b",
+    # 6. Delimiter spoofing (<system>, </system>, [SYSTEM], markdown delimiter attacks)
+    r"(<\/?system>|<\/?instructions?>|\[system\]|\[instructions?\]|<\|im_start\|>|<\|im_end\|>|---begin|---end)",
+]
+
+INJECTION_RE = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
+
 
 def validate_input(text: str, max_chars: int = 500) -> tuple[str, str | None]:
     """Validate user input.
@@ -116,3 +137,12 @@ def output_guard(text: str) -> bool:
         True if dose-like text is detected (blocked), False otherwise.
     """
     return bool(OUTPUT_DOSE_RE.search(text))
+
+
+def injection_check(text: str) -> bool:
+    """Deterministic prompt injection scan.
+
+    Returns:
+        True if text contains prompt-injection attack patterns, False otherwise.
+    """
+    return any(pattern.search(text) for pattern in INJECTION_RE)

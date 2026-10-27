@@ -23,7 +23,13 @@ from faq_bot.messages import (
 )
 from faq_bot.models import BotReply, Message, TurnResult, Usage
 from faq_bot.prompts import build_system_prompt
-from faq_bot.safety import output_guard, precheck, redact_pii, validate_input
+from faq_bot.safety import (
+    injection_check,
+    output_guard,
+    precheck,
+    redact_pii,
+    validate_input,
+)
 
 logger = logging.getLogger("faq_bot.chat")
 logger.setLevel(logging.INFO)
@@ -221,6 +227,38 @@ def handle_turn(
         return TurnResult(
             text=CLINICAL_REFUSAL_TEXT,
             category="clinical_advice",
+            blocked=True,
+            usage=usage,
+            pii_redacted=pii_found,
+            guardrail_flags=flags,
+            request_id=req_id,
+            latency_ms=lat_ms,
+        )
+
+    # Deterministic prompt injection check (after PII redaction, before LLM)
+    if injection_check(text_for_llm):
+        usage = Usage()
+        flags = ["injection_detected"]
+        if pii_found:
+            flags.append("pii_redacted")
+        lat_ms = _log_turn_metadata(
+            start_time,
+            category="off_topic",
+            blocked=True,
+            pii_redacted=pii_found,
+            usage=usage,
+            model=cfg.gemini_model,
+            llm_called=False,
+            request_id=req_id,
+            session_id=sess_id,
+            guardrail_flags=flags,
+            outcome="refused",
+            price_in=cfg.price_input_per_m,
+            price_out=cfg.price_output_per_m,
+        )
+        return TurnResult(
+            text=OFF_TOPIC_TEXT,
+            category="off_topic",
             blocked=True,
             usage=usage,
             pii_redacted=pii_found,
