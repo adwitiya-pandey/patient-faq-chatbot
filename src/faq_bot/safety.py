@@ -58,6 +58,16 @@ OUTPUT_DOSE_RE = re.compile(
     r"\b[0-9]+(\.[0-9]+)?\s?(mg|mcg|µg|ml|iu|units?)\b", re.IGNORECASE
 )
 
+# Contact extraction patterns for output grounding verification
+CONTACT_PHONE_RE = re.compile(
+    r"(?<![0-9])(?:\+?[0-9]{1,3}[-\s]?)?(?:[0-9]{3,4}[-\s][0-9]{3,4}[-\s][0-9]{4}|[0-9]{10})(?![0-9])"
+)
+CONTACT_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.-]+")
+CONTACT_URL_RE = re.compile(
+    r"(?:https?:\/\/|www\.)[A-Za-z0-9.-]+(?:\/[^\s]*)?|\b[a-z0-9.-]+\.(?:example|com|org|edu|gov|io|net)(?:\/[^\s]*)?\b",
+    re.IGNORECASE,
+)
+
 # PII redaction patterns for email, mobile phone, and 12-digit identity numbers
 PII = {
     "email": re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.-]+"),
@@ -146,3 +156,49 @@ def injection_check(text: str) -> bool:
         True if text contains prompt-injection attack patterns, False otherwise.
     """
     return any(pattern.search(text) for pattern in INJECTION_RE)
+
+
+def check_grounded_contacts(
+    answer: str,
+    allowed_source: str | None = None,
+) -> bool:
+    """Ensure all phone numbers, emails, and URLs in answer appear in allowed FAQ/emergency text.
+
+    Returns:
+        True if all contacts are grounded, False if any ungrounded contact is detected.
+    """
+    if allowed_source is None:
+        from faq_bot.messages import EMERGENCY_TEXT
+        from faq_bot.prompts import load_faq_text
+
+        try:
+            faq_text = load_faq_text()
+        except Exception:  # noqa: BLE001 - fallback if FAQ cannot be loaded from disk
+            faq_text = ""
+        source = (
+            f"{faq_text} {EMERGENCY_TEXT} 080-0000-0100 080-0000-0911 112 "
+            f"care@northfield.example portal.northfield.example"
+        )
+    else:
+        source = allowed_source
+
+    phones = CONTACT_PHONE_RE.findall(answer)
+    for p in phones:
+        clean_p = p.strip().rstrip(".,;)")
+        if clean_p not in source:
+            return False
+
+    emails = CONTACT_EMAIL_RE.findall(answer)
+    for e in emails:
+        clean_e = e.strip().rstrip(".,;)").lower()
+        if clean_e not in source.lower():
+            return False
+
+    urls = CONTACT_URL_RE.findall(answer)
+    for u in urls:
+        clean_u = u.strip().rstrip(".,;)").lower()
+        domain_part = re.sub(r"^https?:\/\/", "", clean_u)
+        if clean_u not in source.lower() and domain_part not in source.lower():
+            return False
+
+    return True

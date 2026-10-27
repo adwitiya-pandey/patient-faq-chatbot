@@ -20,10 +20,12 @@ from faq_bot.messages import (
     LLM_ERROR_TEXT,
     OFF_TOPIC_TEXT,
     TOO_LONG_TEXT,
+    UNGROUNDED_CONTACT_FALLBACK_TEXT,
 )
 from faq_bot.models import BotReply, Message, TurnResult, Usage
 from faq_bot.prompts import build_system_prompt
 from faq_bot.safety import (
+    check_grounded_contacts,
     injection_check,
     output_guard,
     precheck,
@@ -409,6 +411,13 @@ def handle_turn(
         blocked = True
         outcome = "refused"
         flags.append("output_dose_blocked")
+
+    # Output grounding guard: check phone numbers, emails, and URLs against FAQ text
+    if not blocked and not check_grounded_contacts(reply_text):
+        reply_text = UNGROUNDED_CONTACT_FALLBACK_TEXT
+        blocked = True
+        outcome = "refused"
+        flags.append("ungrounded_contact_blocked")
 
     # Step 9 & 10: Emit log line and return TurnResult
     lat_ms = _log_turn_metadata(

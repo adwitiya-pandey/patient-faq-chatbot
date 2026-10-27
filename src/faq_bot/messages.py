@@ -30,3 +30,5 @@ FALLBACK_TEXT = (
 )
 
 LLM_ERROR_TEXT = "The assistant is unavailable right now. Please call 080-0000-0100 (8:00 to 20:00, Mon to Sat)."
+
+UNGROUNDED_CONTACT_FALLBACK_TEXT = "Please call the front desk at 080-0000-0100."
