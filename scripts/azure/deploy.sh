@@ -5,6 +5,7 @@ set -euo pipefail
 
 # Configuration with sensible defaults
 RG="${RG:-faq-bot-rg}"
+# Change LOCATION to another region (e.g. eastus, westeurope) if Container Apps is unavailable for the account
 LOCATION="${LOCATION:-centralindia}"
 ENV_NAME="${ENV_NAME:-faq-bot-env}"
 APP_NAME="${APP_NAME:-faq-bot-app}"
@@ -67,6 +68,8 @@ echo "Creating resource group '$RG' in '$LOCATION'..."
 az group create --name "$RG" --location "$LOCATION" --output none
 
 # 3. Create Container Apps Environment with no log analytics ingestion
+# Disables Log Analytics ingestion to avoid charges (--logs-destination none).
+# Note: Standard Log Analytics ingestion includes 5 GB/month free per billing account (unverified, check Azure pricing), but disabling avoids any risk of overage charges.
 if ! az containerapp env show --name "$ENV_NAME" --resource-group "$RG" >/dev/null 2>&1; then
   echo "Creating Container Apps environment '$ENV_NAME' (logs-destination: none)..."
   az containerapp env create \
@@ -93,8 +96,8 @@ if ! az containerapp show --name "$APP_NAME" --resource-group "$RG" >/dev/null 2
     --max-replicas 1 \
     --cpu 0.5 \
     --memory 1.0Gi \
-    --secrets "gemini-key=$GEMINI_API_KEY" \
-    --env-vars "GEMINI_API_KEY=secretref:gemini-key" "LLM_MODE=live" \
+    --secrets "gemini-api-key=$GEMINI_API_KEY" \
+    --env-vars "GEMINI_API_KEY=secretref:gemini-api-key" "LLM_MODE=live" "DAILY_LLM_CALL_CAP=150" "MAX_TURNS_PER_SESSION=20" "LOG_LEVEL=INFO" \
     --output none
 else
   echo "Updating existing Container App '$APP_NAME'..."
@@ -102,8 +105,8 @@ else
     --name "$APP_NAME" \
     --resource-group "$RG" \
     --image "$IMAGE" \
-    --secrets "gemini-key=$GEMINI_API_KEY" \
-    --set-env-vars "GEMINI_API_KEY=secretref:gemini-key" "LLM_MODE=live" \
+    --secrets "gemini-api-key=$GEMINI_API_KEY" \
+    --set-env-vars "GEMINI_API_KEY=secretref:gemini-api-key" "LLM_MODE=live" "DAILY_LLM_CALL_CAP=150" "MAX_TURNS_PER_SESSION=20" "LOG_LEVEL=INFO" \
     --min-replicas 0 \
     --max-replicas 1 \
     --output none

@@ -29,6 +29,12 @@ flowchart LR
 
 The deployment is architected to operate comfortably within Azure and Google free grants:
 
+- **Container Apps Consumption Plan:** Monthly free grant includes **180,000 vCPU-seconds, 360,000 GiB-seconds, and 2 million requests** (source: [learn.microsoft.com/azure/container-apps/billing](https://learn.microsoft.com/azure/container-apps/billing)).
+- **Scale-to-Zero:** Scale-to-zero has no resource charges; idle charges only apply when min replicas is above zero (source: [learn.microsoft.com/azure/container-apps/billing](https://learn.microsoft.com/azure/container-apps/billing)).
+- **Log Ingestion:** Created with `--logs-destination none` to avoid Log Analytics workspace data ingestion charges entirely (note: standard Log Analytics offers 5 GB/month free per account [unverified, check Azure pricing], but disabling avoids any billable risk).
+- **Azure Free Account:** Gives **200 USD credit for 30 days**, after which services are disabled unless you upgrade to pay-as-you-go, and nothing is charged unless you upgrade (source: [azure.microsoft.com/free/free-account-faq](https://azure.microsoft.com/free/free-account-faq)).
+- **Consequence:** The public demo link can stop working when the 30 days end unless manually upgraded or reprovisioned.
+
 | Component | Free Monthly Grant (Azure / Google) | Configured Setting | Estimated Monthly Cost |
 |---|---|---|---|
 | **Azure Container Apps vCPU** | 180,000 vCPU-seconds / month | 0.5 vCPU, active only during request processing | **$0.00** |
@@ -37,9 +43,6 @@ The deployment is architected to operate comfortably within Azure and Google fre
 | **Azure Log Analytics** | Typically 5 GB/month (if enabled) | Disabled via `--logs-destination none` | **$0.00** |
 | **Google Gemini API** | Free tier (up to model daily quota) | Free tier evaluation key | **$0.00** |
 | **Total Estimated Idle Cost** | — | — | **$0.00 / month** |
-
-> [!NOTE]
-> **Azure Free Account Credit:** New Azure accounts receive **$200 USD in free credits for the first 30 days**, followed by 12 months of popular free services and always-free grants (including Container Apps free tier).
 
 ---
 

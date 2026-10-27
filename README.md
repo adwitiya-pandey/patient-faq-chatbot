@@ -32,10 +32,10 @@ flowchart LR
 ```
 
 > [!NOTE]
-> **Cold Start Notice:** The deployment configures `--min-replicas 0` to eliminate cloud idle spend. When the application has been idle for several minutes, Azure terminates running replicas. The first incoming request will experience a cold start (~15–30 seconds) while Azure provisions a container replica. Subsequent requests respond in <1 second.
+> **Cold Start Notice:** The deployment configures `--min-replicas 0` to eliminate cloud idle spend. When the application has been idle for several minutes, Azure terminates running replicas; first load after idle takes several seconds (~15–30 seconds) while Azure provisions a container replica. Subsequent requests respond in <1 second.
 
 > [!WARNING]
-> **Data Privacy Notice:** When operating on Google's free Gemini tier, prompt inputs may be reviewed by human reviewers and utilized by Google to improve services. **Only synthetic patient inquiries should be entered during testing; never submit real Protected Health Information (PHI).**
+> **Data Privacy Notice:** Synthetic questions only; free Gemini tier may use prompts to improve Google products per Google's terms of service. **Never submit real Protected Health Information (PHI).**
 
 ---
 
