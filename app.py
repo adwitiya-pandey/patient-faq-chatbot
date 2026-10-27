@@ -1,11 +1,17 @@
 """Streamlit entrypoint for Northfield Hospital FAQ chatbot."""
 
+import uuid
+
 import streamlit as st
 
 from faq_bot.chat import handle_turn
 from faq_bot.config import Config, load_config
 from faq_bot.cost import Totals
+from faq_bot.logging_setup import setup_logging
 from faq_bot.messages import DISCLAIMER
+
+# Configure structured JSON logging once at startup
+setup_logging()
 
 # Page configuration
 st.set_page_config(
@@ -24,6 +30,8 @@ if "history" not in st.session_state:
     st.session_state.history = []
 if "totals" not in st.session_state:
     st.session_state.totals = Totals()
+if "session_id" not in st.session_state:
+    st.session_state.session_id = uuid.uuid4().hex[:16]
 
 # Sidebar: Token usage, estimated cost, and controls
 with st.sidebar:
@@ -71,6 +79,7 @@ if user_text:
             history=st.session_state.history,
             text=user_text,
             config=config,
+            session_id=st.session_state.session_id,
         )
 
         # Update running session totals
