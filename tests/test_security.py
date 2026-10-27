@@ -43,8 +43,8 @@ def test_config_error_does_not_echo_key():
     """S2: Invalid or missing key error messages must never echo key values."""
     secret_key = "SecretLeakCheckValue123"
     with pytest.raises(ValueError) as exc_info:
-        # Pass a dict where key is empty to trigger error
-        load_config(env={"GEMINI_API_KEY": ""})
+        # Pass a dict where key is empty in live mode to trigger error
+        load_config(env={"GEMINI_API_KEY": "", "LLM_MODE": "live"})
     assert secret_key not in str(exc_info.value)
 
     cfg = Config(gemini_api_key=secret_key)

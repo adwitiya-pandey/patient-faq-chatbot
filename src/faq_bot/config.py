@@ -22,6 +22,7 @@ class Config:
     min_seconds_between_turns: float = 2.0
     daily_llm_call_cap: int = 200
     llm_kill_switch: bool = False
+    llm_mode: str = "live"
 
     def __repr__(self) -> str:
         """Never echo the raw API key in string representations."""
@@ -33,7 +34,8 @@ class Config:
             f"max_turns_per_session={self.max_turns_per_session}, "
             f"min_seconds_between_turns={self.min_seconds_between_turns}, "
             f"daily_llm_call_cap={self.daily_llm_call_cap}, "
-            f"llm_kill_switch={self.llm_kill_switch})"
+            f"llm_kill_switch={self.llm_kill_switch}, "
+            f"llm_mode='{self.llm_mode}')"
         )
 
 
@@ -49,9 +51,23 @@ def load_config(env: dict[str, str] | None = None) -> Config:
     else:
         source = env
 
+    raw_mode = source.get("LLM_MODE")
     api_key = source.get("GEMINI_API_KEY")
-    if not api_key or not str(api_key).strip():
-        raise ValueError("GEMINI_API_KEY environment variable is required")
+
+    if raw_mode:
+        mode = str(raw_mode).strip().lower()
+        if mode not in ("live", "scripted"):
+            raise ValueError(f"Invalid LLM_MODE: {mode}. Must be 'live' or 'scripted'")
+    else:
+        # Default is scripted when GEMINI_API_KEY is empty/missing, live otherwise
+        mode = "live" if (api_key and str(api_key).strip()) else "scripted"
+
+    if mode == "live":
+        if not api_key or not str(api_key).strip():
+            raise ValueError("GEMINI_API_KEY environment variable is required")
+        clean_key = api_key.strip()
+    else:
+        clean_key = api_key.strip() if (api_key and str(api_key).strip()) else ""
 
     try:
         price_in = float(source.get("PRICE_INPUT_PER_M", 0.75))
@@ -100,7 +116,7 @@ def load_config(env: dict[str, str] | None = None) -> Config:
     hospital = source.get("HOSPITAL_NAME", "Northfield Multispecialty Hospital")
 
     return Config(
-        gemini_api_key=api_key.strip(),
+        gemini_api_key=clean_key,
         gemini_model=model.strip(),
         price_input_per_m=price_in,
         price_output_per_m=price_out,
@@ -112,4 +128,5 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         min_seconds_between_turns=min_seconds,
         daily_llm_call_cap=daily_cap,
         llm_kill_switch=kill_switch,
+        llm_mode=mode,
     )

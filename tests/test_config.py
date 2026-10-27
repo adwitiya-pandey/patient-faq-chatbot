@@ -6,19 +6,26 @@ from faq_bot.config import Config, load_config
 
 
 def test_missing_api_key_raises():
-    """Missing GEMINI_API_KEY raises ValueError."""
+    """Missing GEMINI_API_KEY in live mode raises ValueError."""
     with pytest.raises(
         ValueError, match="GEMINI_API_KEY environment variable is required"
     ):
-        load_config(env={})
+        load_config(env={"LLM_MODE": "live"})
 
 
 def test_empty_api_key_raises():
-    """Empty GEMINI_API_KEY raises ValueError."""
+    """Empty GEMINI_API_KEY in live mode raises ValueError."""
     with pytest.raises(
         ValueError, match="GEMINI_API_KEY environment variable is required"
     ):
-        load_config(env={"GEMINI_API_KEY": "   "})
+        load_config(env={"LLM_MODE": "live", "GEMINI_API_KEY": "   "})
+
+
+def test_default_mode_without_key_is_scripted():
+    """When GEMINI_API_KEY is empty and no mode specified, default mode is scripted."""
+    cfg = load_config(env={})
+    assert cfg.llm_mode == "scripted"
+    assert cfg.gemini_api_key == ""
 
 
 def test_config_defaults():

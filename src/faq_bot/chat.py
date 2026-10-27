@@ -35,6 +35,7 @@ from faq_bot.safety import (
     redact_pii,
     validate_input,
 )
+from faq_bot.scripted_llm import ScriptedLLM
 
 logger = logging.getLogger("faq_bot.chat")
 logger.setLevel(logging.INFO)
@@ -372,7 +373,15 @@ def handle_turn(
     # Step 5: Call LLM
     limiter.record_llm_call()
     system_prompt = build_system_prompt(cfg.hospital_name)
-    llm_callable = getattr(llm, "generate_json", llm) or generate_json
+    if llm is not None:
+        llm_callable = getattr(llm, "generate_json", llm)
+        model_name = cfg.gemini_model
+    elif cfg.llm_mode == "scripted" or cfg.llm_kill_switch:
+        llm_callable = ScriptedLLM().generate_json
+        model_name = "scripted-demo"
+    else:
+        llm_callable = generate_json
+        model_name = cfg.gemini_model
 
     try:
         llm_result = llm_callable(
@@ -388,7 +397,7 @@ def handle_turn(
             blocked=True,
             pii_redacted=pii_found,
             usage=usage,
-            model=cfg.gemini_model,
+            model=model_name,
             llm_called=True,
             request_id=req_id,
             session_id=sess_id,
@@ -500,7 +509,7 @@ def handle_turn(
         blocked=blocked,
         pii_redacted=pii_found,
         usage=total_usage,
-        model=cfg.gemini_model,
+        model=model_name,
         llm_called=True,
         request_id=req_id,
         session_id=sess_id,

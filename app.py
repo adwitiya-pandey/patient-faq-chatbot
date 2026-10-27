@@ -35,9 +35,16 @@ if "session_id" not in st.session_state:
 
 # Sidebar: Token usage, estimated cost, and controls
 with st.sidebar:
+    if config.llm_mode == "scripted" or config.llm_kill_switch:
+        st.warning("SCRIPTED DEMO (no model)")
+    else:
+        st.success(f"LIVE: {config.gemini_model}")
+
     st.header("Session Usage (Estimate)")
     st.caption("Pricing is an estimate based on configured token rates.")
-    st.text(f"Model: {config.gemini_model}")
+    st.text(
+        f"Model: {config.gemini_model if config.llm_mode != 'scripted' else 'scripted-demo'}"
+    )
     st.metric("LLM Calls", st.session_state.totals.llm_calls)
     st.metric("Input Tokens", f"{st.session_state.totals.input_tokens:,}")
     st.metric("Output Tokens", f"{st.session_state.totals.output_tokens:,}")
