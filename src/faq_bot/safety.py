@@ -58,12 +58,43 @@ OUTPUT_DOSE_RE = re.compile(
     r"\b[0-9]+(\.[0-9]+)?\s?(mg|mcg|µg|ml|iu|units?)\b", re.IGNORECASE
 )
 
+# Contact extraction patterns for output grounding verification
+CONTACT_PHONE_RE = re.compile(
+    r"(?<![0-9])(?:\+?[0-9]{1,3}[-\s]?)?(?:[0-9]{3,4}[-\s][0-9]{3,4}[-\s][0-9]{4}|[0-9]{10})(?![0-9])"
+)
+CONTACT_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.-]+")
+CONTACT_URL_RE = re.compile(
+    r"(?:https?:\/\/|www\.)[A-Za-z0-9.-]+(?:\/[^\s]*)?|\b[a-z0-9.-]+\.(?:example|com|org|edu|gov|io|net)(?:\/[^\s]*)?\b",
+    re.IGNORECASE,
+)
+
 # PII redaction patterns for email, mobile phone, and 12-digit identity numbers
 PII = {
     "email": re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.-]+"),
     "mobile": re.compile(r"(?<![0-9])(?:\+91[\s-]?)?[6-9][0-9]{9}(?![0-9])"),
     "id12": re.compile(r"(?<![0-9])[0-9]{4}\s?[0-9]{4}\s?[0-9]{4}(?![0-9])"),
 }
+
+# Prompt injection patterns: attempts to alter model instructions, reveal system prompts, or hijack personas.
+INJECTION_PATTERNS = [
+    # 1. Ignore/disregard/bypass instructions or rules
+    r"\b(ignore|disregard|forget|override|bypass)\b.*\b(previous|prior|above|all)\b.*\b(instruction|prompt|rule|directive|constraint|system)s?\b",
+    r"\b(ignore|disregard|forget|override)\b.*\b(system\s*prompt|system\s*instruction|instructions\s*above)\b",
+    # 2. Reveal/print system prompt
+    r"\b(reveal|print|show|output|display|repeat|dump|tell\s+me)\b.*\b(system\s*prompt|initial\s*instructions?|system\s*instructions?|prompt\s*above|all\s+rules|internal\s+instructions?)\b",
+    # 3. Act as / DAN / developer mode
+    r"\b(act\s+as\s+(dan|an?\s+unrestricted|an?\s+unfiltered|evil|jailbroken)|developer\s+mode|dan\s+mode|jailbreak)\b",
+    # 4. Role-play override / "you are now"
+    r"\b(you\s+are\s+now|from\s+now\s+on\s+you\s+are|pretend\s+(to\s+be|you\s+are)|roleplay\s+as)\b.*\b(doctor|physician|unrestricted|unfiltered|jailbreak|another|different|gpt|claude|dan|bot|assistant)\b",
+    r"\b(you\s+are\s+now\s+(an?|in\b)|from\s+now\s+on\s+you\s+are\b)",
+    # 5. Base64 or long encoded blobs (at least 32 contiguous base64 characters or decode directive)
+    r"(?i)\bbase64\b.*(?:decode|eval|exec|blob|string)",
+    r"\b[A-Za-z0-9+/]{32,}={0,2}\b",
+    # 6. Delimiter spoofing (<system>, </system>, [SYSTEM], markdown delimiter attacks)
+    r"(<\/?system>|<\/?instructions?>|\[system\]|\[instructions?\]|<\|im_start\|>|<\|im_end\|>|---begin|---end)",
+]
+
+INJECTION_RE = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
 
 
 def validate_input(text: str, max_chars: int = 500) -> tuple[str, str | None]:
@@ -116,3 +147,58 @@ def output_guard(text: str) -> bool:
         True if dose-like text is detected (blocked), False otherwise.
     """
     return bool(OUTPUT_DOSE_RE.search(text))
+
+
+def injection_check(text: str) -> bool:
+    """Deterministic prompt injection scan.
+
+    Returns:
+        True if text contains prompt-injection attack patterns, False otherwise.
+    """
+    return any(pattern.search(text) for pattern in INJECTION_RE)
+
+
+def check_grounded_contacts(
+    answer: str,
+    allowed_source: str | None = None,
+) -> bool:
+    """Ensure all phone numbers, emails, and URLs in answer appear in allowed FAQ/emergency text.
+
+    Returns:
+        True if all contacts are grounded, False if any ungrounded contact is detected.
+    """
+    if allowed_source is None:
+        from faq_bot.messages import EMERGENCY_TEXT
+        from faq_bot.prompts import load_faq_text
+
+        try:
+            faq_text = load_faq_text()
+        except Exception:  # noqa: BLE001 - fallback if FAQ cannot be loaded from disk
+            faq_text = ""
+        source = (
+            f"{faq_text} {EMERGENCY_TEXT} 080-0000-0100 080-0000-0911 112 "
+            f"care@northfield.example portal.northfield.example"
+        )
+    else:
+        source = allowed_source
+
+    phones = CONTACT_PHONE_RE.findall(answer)
+    for p in phones:
+        clean_p = p.strip().rstrip(".,;)")
+        if clean_p not in source:
+            return False
+
+    emails = CONTACT_EMAIL_RE.findall(answer)
+    for e in emails:
+        clean_e = e.strip().rstrip(".,;)").lower()
+        if clean_e not in source.lower():
+            return False
+
+    urls = CONTACT_URL_RE.findall(answer)
+    for u in urls:
+        clean_u = u.strip().rstrip(".,;)").lower()
+        domain_part = re.sub(r"^https?:\/\/", "", clean_u)
+        if clean_u not in source.lower() and domain_part not in source.lower():
+            return False
+
+    return True

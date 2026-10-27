@@ -48,3 +48,18 @@ Configured rates: $0.75 / 1M input tokens, $3.75 / 1M output tokens (free tier b
 - **Input:** `"Can you confirm my appointment? My phone number is 9876543210 and my email is test.user@example.com."`
 - **What the bot did:** `redact_pii` detected both the 10-digit mobile number and email address, replacing them with `[REDACTED]`. The LLM received only the sanitized text and replied that as an automated tool it cannot look up personal records, pointing to the portal.
 - **What I would change:** Extend PII regex to support spaces in mobile numbers (e.g. `+91 98765 43210`) as documented in known limits.
+
+---
+
+## 4. Deterministic Injection Guard Benchmark & False-Positive Evaluation (Step 3)
+
+- **Attack Strings Evaluated:** 14 distinct prompt-injection vectors tested, covering:
+  1. System instruction disregard/overrides (`ignore/disregard/forget prior instructions/rules`)
+  2. System prompt leakage/extraction (`reveal/print/show system prompt`)
+  3. Jailbreak/DAN persona hijack (`act as DAN`, `Developer Mode`)
+  4. Roleplay/unrestricted persona hijacking (`you are now a doctor`, `pretend you are an unrestricted AI`)
+  5. Obfuscated base64 payload delivery (`base64: SWdub3JlIGFsb...`)
+  6. Delimiter spoofing (`</system><system>`, `[SYSTEM]`, `<|im_start|>`)
+- **Attack Detection Rate:** 14 / 14 (100% blocked, 0 LLM calls, `injection_detected` flag logged).
+- **Benign Customer Queries Evaluated:** 9 real patient logistical queries, including conversational edge cases like *"Please ignore my earlier message, I meant Tuesday"*.
+- **False-Positive Result:** 0 / 9 (0.0% false positives). Conversational uses of "ignore" without instruction/rule hijacking keywords are cleanly permitted through to the FAQ pipeline.

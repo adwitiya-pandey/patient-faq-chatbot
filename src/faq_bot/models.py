@@ -29,6 +29,9 @@ class TurnResult(BaseModel):
     blocked: bool
     usage: Usage
     pii_redacted: bool
+    guardrail_flags: list[str] = Field(default_factory=list)
+    request_id: str = ""
+    latency_ms: float = 0.0
 
 
 @dataclass

@@ -26,6 +26,26 @@ class LLMResult:
     usage: Usage
 
 
+def build_generate_content_config(
+    system_prompt: str,
+    disable_thinking: bool = True,
+) -> types.GenerateContentConfig:
+    """Build GenerateContentConfig for Gemini structured JSON output.
+
+    Uses response_json_schema to support OpenAPI 3.1 / JSON Schema schemas with
+    forbidden additional properties.
+    """
+    thinking_cfg = types.ThinkingConfig(thinking_budget=0) if disable_thinking else None
+    return types.GenerateContentConfig(
+        system_instruction=system_prompt,
+        response_mime_type="application/json",
+        response_json_schema=BotReply.model_json_schema(),
+        thinking_config=thinking_cfg,
+        temperature=0.2,
+        max_output_tokens=800,
+    )
+
+
 def generate_json(
     system_prompt: str,
     contents: list[Message],
@@ -47,14 +67,7 @@ def generate_json(
         for msg in contents
     ]
 
-    req_config = types.GenerateContentConfig(
-        system_instruction=system_prompt,
-        response_mime_type="application/json",
-        response_json_schema=BotReply.model_json_schema(),
-        thinking_config=types.ThinkingConfig(thinking_budget=0),
-        temperature=0.2,
-        max_output_tokens=800,
-    )
+    req_config = build_generate_content_config(system_prompt=system_prompt)
 
     max_retries = cfg.llm_max_retries
     wait = 1.0
