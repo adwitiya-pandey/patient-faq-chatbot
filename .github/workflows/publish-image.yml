@@ -1,0 +1,54 @@
+# GitHub Actions workflow to build and publish the container image to GitHub Container Registry (GHCR).
+#
+# IMPORTANT: Public Visibility Configuration
+# Once the first image is published, navigate to:
+# GitHub -> Your Profile/Org -> Packages -> patient-faq-chatbot -> Package settings
+# -> "Change package visibility" -> select "Public".
+# This allows Azure Container Apps (and anyone evaluating the project) to pull the image
+# without configuring image registry credentials or tokens in Azure.
+
+name: Publish Container Image
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/adwitiya-pandey/patient-faq-chatbot
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

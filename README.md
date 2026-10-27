@@ -14,6 +14,31 @@ Northfield Multispecialty Hospital in Bengaluru receives over 400 calls daily at
 
 ---
 
+## Live Demo & Container Deployment
+
+An Azure Container Apps deployment pipeline packages this application into a multi-stage container and deploys with **scale-to-zero** serverless autoscaling to guarantee **$0.00 idle operational cost**.
+
+- **Deployment Guide:** Complete step-by-step instructions in [docs/DEPLOY.md](docs/DEPLOY.md).
+- **Public Container Image:** `ghcr.io/adwitiya-pandey/patient-faq-chatbot:latest`
+- **Sample Endpoint URL:** `https://faq-bot-app.<custom-or-azure-domain>.azurecontainerapps.io`
+
+```mermaid
+flowchart LR
+    Dev["GitHub Tag (v*)"] --> GHA["GitHub Actions\n(publish-image.yml)"]
+    GHA --> GHCR["GitHub Container Registry\n(ghcr.io)"]
+    GHCR --> ACA["Azure Container Apps\n(min=0, max=1)"]
+    ACA --> App["Streamlit Chatbot\n(:8501)"]
+    App --> Gemini["Gemini API\n(gemini-3.8-flash)"]
+```
+
+> [!NOTE]
+> **Cold Start Notice:** The deployment configures `--min-replicas 0` to eliminate cloud idle spend. When the application has been idle for several minutes, Azure terminates running replicas; first load after idle takes several seconds (~15–30 seconds) while Azure provisions a container replica. Subsequent requests respond in <1 second.
+
+> [!WARNING]
+> **Data Privacy Notice:** Synthetic questions only; free Gemini tier may use prompts to improve Google products per Google's terms of service. **Never submit real Protected Health Information (PHI).**
+
+---
+
 ## Execution Modes
 
 The assistant supports both live model inference and zero-credential scripted demonstration:
@@ -167,6 +192,7 @@ The sidebar tracks real-time session token consumption:
 
 ```text
 patient-faq-chatbot/
+├── .dockerignore
 ├── .editorconfig
 ├── .env.example
 ├── .gitattributes
@@ -174,12 +200,14 @@ patient-faq-chatbot/
 │   ├── agents/
 │   │   └── builder.agent.md
 │   └── workflows/
-│       └── ci.yml
+│       ├── ci.yml
+│       └── publish-image.yml
 ├── .gitignore
 ├── .python-version
 ├── .vscode/
 │   └── settings.json
 ├── AGENTS.md
+├── Dockerfile
 ├── LICENSE
 ├── README.md
 ├── SPEC.md
@@ -188,6 +216,7 @@ patient-faq-chatbot/
 ├── data/
 │   └── hospital_faq.md
 ├── docs/
+│   ├── DEPLOY.md
 │   ├── EXPLAIN-PLAIN-ENGLISH.md
 │   ├── decisions.md
 │   ├── demo_questions.md
@@ -200,7 +229,12 @@ patient-faq-chatbot/
 │   └── system_prompt.md
 ├── pyproject.toml
 ├── scripts/
-│   └── live_smoke.py
+│   ├── azure/
+│   │   ├── budget.sh
+│   │   ├── deploy.sh
+│   │   └── teardown.sh
+│   ├── live_smoke.py
+│   └── smoke_remote.py
 ├── src/faq_bot/
 │   ├── __init__.py
 │   ├── chat.py
@@ -231,6 +265,7 @@ patient-faq-chatbot/
 │   ├── test_scripted_llm.py
 │   ├── test_security.py
 │   ├── test_smoke.py
+│   ├── test_smoke_remote.py
 │   └── test_ui.py
 └── uv.lock
 ```
