@@ -6,8 +6,8 @@ import pytest
 from google.genai import errors, types
 
 from faq_bot.config import Config
-from faq_bot.llm import LLMError, generate_json
-from faq_bot.models import Message
+from faq_bot.llm import LLMError, build_generate_content_config, generate_json
+from faq_bot.models import BotReply, Message
 
 
 def test_retry_on_429_then_success():
@@ -102,3 +102,22 @@ def test_gives_up_after_max_retries():
     # 1 initial + 3 retries = 4 calls, sleeps 1, 2, 4
     assert mock_client.models.generate_content.call_count == 4
     assert sleeps == [1.0, 2.0, 4.0]
+
+
+def test_build_generate_content_config():
+    """Verify GenerateContentConfig builds with correct schema, MIME type, and thinking parameters."""
+    cfg = build_generate_content_config(
+        system_prompt="system instructions", disable_thinking=True
+    )
+    assert cfg.system_instruction == "system instructions"
+    assert cfg.response_mime_type == "application/json"
+    assert cfg.response_json_schema == BotReply.model_json_schema()
+    assert cfg.temperature == 0.2
+    assert cfg.max_output_tokens == 800
+    assert cfg.thinking_config is not None
+    assert cfg.thinking_config.thinking_budget == 0
+
+    cfg_no_think = build_generate_content_config(
+        system_prompt="sys", disable_thinking=False
+    )
+    assert cfg_no_think.thinking_config is None
